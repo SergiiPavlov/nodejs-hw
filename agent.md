@@ -1,84 +1,143 @@
-# Agent brief for Codex / AI reviewer
+# AGENT brief for Codex / AI reviewer
 
 ## Project
 
-Node.js homework **01-express** — minimal Express backend for notes collection.
+Node.js homework **02-mongodb** — Express backend for a notes collection with MongoDB (Mongoose).
+
+Repository name: `nodejs-hw`  
+Expected working branch: `02-mongodb`  
+
+This homework is a continuation of `01-express`, але тепер з реальною базою даних MongoDB та правильною структурою коду.
 
 ## Goals
 
-- Keep the project aligned with the homework requirements from GoIT:
-  - repository name: `nodejs-hw`
-  - working branch: `01-express`
-  - app uses Express, CORS, dotenv, pino-http
-  - implements the required routes and middleware
-- Maintain clean, consistent code style (ESLint + Prettier).
-- Keep the server simple and beginner-friendly.
+- Тримати проєкт повністю у відповідності до вимог ДЗ-02:
+  - сервер на Express з окремими шарами:
+    - підключення до БД (`src/db/connectMongoDB.js`)
+    - middleware (`src/middleware/*`)
+    - моделі (`src/models/*`)
+    - контролери (`src/controllers/*`)
+    - роутери (`src/routes/*`)
+  - підключення до MongoDB через Mongoose із рядком підключення в `MONGO_URL`
+  - використання `pino-http` для логування
+  - реалізовані всі 5 CRUD-операцій для нотаток:
+    - `GET /notes`
+    - `GET /notes/:noteId`
+    - `POST /notes`
+    - `PATCH /notes/:noteId`
+    - `DELETE /notes/:noteId`
+  - коректна обробка 404 та помилок через `http-errors`
+- Зберігати код максимально простим і читабельним для початківця.
+- Не ламати те, що вже працює, при рефакторингу.
 
-## Tech stack
+## Tech stack / libraries
 
-- Node.js (ESM, `type: "module"`)
+- Node.js (ESM)
 - Express
+- Mongoose
+- pino-http + pino-pretty
+- http-errors
 - cors
 - dotenv
-- pino-http + pino-pretty
-- nodemon (dev)
-- ESLint (flat config, JS recommended)
-- Prettier
+- ESLint + Prettier (базове налаштування)
 
-## File structure
+## Structure
 
-- `src/server.js` — main Express app
-- `.env` / `.env.example` — env variables (PORT, NODE_ENV)
-- `eslint.config.mjs` — ESLint configuration
-- `.prettierrc` — Prettier config
-- `.editorconfig` — editor defaults
-- `.gitignore` — standard Node/git ignores
-- `agent.md` — this brief
+Ключові файли:
 
-## What the agent should check
+- `src/server.js`
+  - підключає `dotenv/config`, `express`, `cors`
+  - реєструє глобальні middleware:
+    - `logger` (pino-http)
+    - `express.json()`
+    - `cors()`
+  - реєструє роутер нотаток: `app.use(notesRoutes)`
+  - після роутів — `notFoundHandler`, потім `errorHandler`
+  - **до** старту сервера викликає `await connectMongoDB()`
+- `src/db/connectMongoDB.js`
+  - експорт `connectMongoDB()`
+  - читає `process.env.MONGO_URL`
+  - на успіх → логує `✅ MongoDB connection established successfully`
+  - на помилку → логує і викликає `process.exit(1)`
+- `src/middleware/logger.js`
+  - експорт `logger` з `pino-http` + `pino-pretty`
+- `src/middleware/notFoundHandler.js`
+  - повертає 404 з JSON `{ "message": "Route not found" }`
+- `src/middleware/errorHandler.js`
+  - імпортує `HttpError` з `http-errors`
+  - якщо `err instanceof HttpError` → повертає `err.status` і `{ message: err.message || err.name }`
+  - інакше:
+    - якщо `NODE_ENV === "production"` → 500 + загальне повідомлення
+    - інакше → 500 + `err.message`
+- `src/models/note.js`
+  - Mongoose-модель `Note` з полями:
+    - `title: String`, `required: true`, `trim: true`
+    - `content: String`, `trim: true`, `default: ""`
+    - `tag: String`, `enum` з:
+      `Work | Personal | Meeting | Shopping | Ideas | Travel | Finance | Health | Important | Todo`,
+      `default: "Todo"`, `trim: true`
+    - опції: `timestamps: true`, `versionKey: false`
+- `src/controllers/notesController.js`
+  - `getAllNotes(req, res)`
+    - `Note.find()` → 200 + масив нотаток
+  - `getNoteById(req, res, next)`
+    - `Note.findById(noteId)`
+    - якщо немає → `next(createHttpError(404, "Note not found"))`
+    - інакше → 200 + об’єкт
+  - `createNote(req, res)`
+    - `Note.create(req.body)` → 201 + створений документ
+  - `deleteNote(req, res, next)`
+    - `Note.findOneAndDelete({ _id: noteId })`
+    - якщо немає → 404 через `createHttpError`
+    - інакше → 200 + видалений документ
+  - `updateNote(req, res, next)`
+    - `Note.findOneAndUpdate({ _id: noteId }, req.body, { new: true })`
+    - якщо немає → 404 через `createHttpError`
+    - інакше → 200 + оновлений документ
+- `src/routes/notesRoutes.js`
+  - реєструє всі 5 CRUD-роутів:
+    - `GET /notes`
+    - `GET /notes/:noteId`
+    - `POST /notes`
+    - `PATCH /notes/:noteId`
+    - `DELETE /notes/:noteId`
+  - **Важливо:** префікс `/notes` лишається тут, а не в `server.js`.
 
-1. **Basic requirements**
-   - All required routes exist and respond as specified:
-     - `GET /notes` → 200 + `{ "message": "Retrieved all notes" }`
-     - `GET /notes/:noteId` → 200 + `{ "message": "Retrieved note with ID: <id>" }`
-     - `GET /test-error` → throws error handled by error middleware
-   - Middleware:
-     - `express.json()` is registered
-     - `cors()` is registered
-     - `pino-http` is registered and logs requests
-     - 404 middleware returns `{ "message": "Route not found" }` with status 404
-     - error middleware returns 500 with JSON `{ message: ... }`
+## ENV
 
-2. **Environment variables**
-   - `.env` is **not** committed in real repo, only `.env.example`.
-   - Server reads `process.env.PORT` (fallback `3000`).
-   - `NODE_ENV` switches error message between detailed (development) and safe (production).
+Файл `.env` (на основі `.env.example`):
 
-3. **Code quality**
-   - No unused variables, no `console.log` left except server start and error logging.
-   - Consistent import style (ESM).
-   - No duplicated logic.
-   - All routes and middleware are in `src/server.js` for this homework (no unnecessary abstractions).
+```env
+PORT=3000
+MONGO_URL=your-mongodb-connection-string
+NODE_ENV=development
+```
 
-4. **DX (developer experience)**
-   - `npm run dev` uses nodemon to restart on file changes.
-   - `npm run start` runs production server.
-   - `npm run lint` works and passes.
+Важливо **не** комітити `.env` у репозиторій; використовувати `.env.example` як шаблон.
 
 ## When making changes
 
-- Do not introduce additional routes, databases or business logic beyond the homework unless explicitly requested.
-- Keep the public API of this homework **minimal** and stable.
-- If refactoring:
-  - preserve the required responses and status codes;
-  - keep the structure easy to understand for a beginner.
+- Не змінювати назви контролерів, роутів та полів у схемі, які вимагає ТЗ:
+  - назви експортів у `notesController.js`: `getAllNotes`, `getNoteById`, `createNote`, `deleteNote`, `updateNote`
+  - маршрутні шляхи: `/notes`, `/notes/:noteId`
+- Не додавати зайві роутери чи бізнес-логіку, яка не потрібна для цього ДЗ (якщо користувач явно не просить).
+- Памʼятати про порядок middleware:
+  1. `logger`
+  2. `express.json()`
+  3. `cors()`
+  4. роутери
+  5. `notFoundHandler`
+  6. `errorHandler`
+- Якщо вносяться зміни:
+  - не ламати існуючі відповіді та статус-коди;
+  - не видаляти існуючі файли `db/`, `middleware/`, `models/`, `controllers/`, `routes/` без важливої причини.
 
 ## Output format for reviews
 
-When commenting on PRs, please:
+Коли коментуєш PR, будь ласка:
 
-- Group issues by categories: `logic`, `requirements`, `style`, `DX`.
-- For each issue:
-  - show **current code** (short snippet),
-  - suggest **improved code**,
-  - explain briefly *why* the change is needed (1–2 sentences).
+- групуй зауваження за категоріями: `logic`, `requirements`, `structure`, `style`, `DX`;
+- для кожної проблеми:
+  - покажи **поточний код** (короткий фрагмент),
+  - запропонуй **виправлений код**,
+  - коротко (1–2 речення) поясни, *чому* зміна потрібна з точки зору ДЗ або кращої практики.
