@@ -1,7 +1,7 @@
 {
   "name": "nodejs-hw",
   "version": "1.0.0",
-  "description": "Homework 01: Minimal Express notes API",
+  "description": "Homework 02: Express notes API with MongoDB and Mongoose",
   "type": "module",
   "main": "src/server.js",
   "scripts": {
@@ -17,7 +17,9 @@
     "dotenv": "^16.6.1",
     "express": "^4.21.2",
     "pino-http": "^10.5.0",
-    "pino-pretty": "^13.1.2"
+    "pino-pretty": "^13.1.2",
+    "mongoose": "^8.7.0",
+    "http-errors": "^2.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
