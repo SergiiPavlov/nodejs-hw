@@ -83,3 +83,10 @@ npm run lint  # перевірка ESLint
 ```bash
 npm install && npm run start
 ```
+
+
+## 04-auth
+
+- Реєстрація, логін, логаут користувачів
+- Сесії в MongoDB, cookies з access/refresh токенами
+- Приватні колекції нотаток, доступні лише авторизованому користувачу
