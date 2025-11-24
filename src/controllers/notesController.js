@@ -9,32 +9,31 @@ export const getAllNotes = async (req, res, next) => {
     const perPageNum = Number(perPage) || 10;
     const skip = (pageNum - 1) * perPageNum;
 
-    const filter = {};
+    const filter = {
+      userId: req.user._id
+    };
 
     if (tag) {
       filter.tag = tag;
     }
 
-    if (search !== undefined) {
-      const value = search.trim();
-      if (value !== "") {
-        filter.$text = { $search: value };
-      }
+    if (search) {
+      filter.$text = { $search: search };
     }
 
-    const [totalNotes, notes] = await Promise.all([
-      Note.countDocuments(filter),
-      Note.find(filter).skip(skip).limit(perPageNum)
+    const [notes, total] = await Promise.all([
+      Note.find(filter).skip(skip).limit(perPageNum),
+      Note.countDocuments(filter)
     ]);
 
-    const totalPages = Math.max(1, Math.ceil(totalNotes / perPageNum) || 1);
+    const totalPages = Math.ceil(total / perPageNum) || 1;
 
     res.status(200).json({
       page: pageNum,
       perPage: perPageNum,
-      totalNotes,
+      total,
       totalPages,
-      notes
+      data: notes
     });
   } catch (error) {
     next(error);
@@ -45,7 +44,10 @@ export const getNoteById = async (req, res, next) => {
   try {
     const { noteId } = req.params;
 
-    const note = await Note.findById(noteId);
+    const note = await Note.findOne({
+      _id: noteId,
+      userId: req.user._id
+    });
 
     if (!note) {
       return next(createHttpError(404, "Note not found"));
@@ -53,13 +55,24 @@ export const getNoteById = async (req, res, next) => {
 
     res.status(200).json(note);
   } catch (error) {
+    if (error.name === "CastError") {
+      return next(createHttpError(400, "Invalid note id"));
+    }
     next(error);
   }
 };
 
 export const createNote = async (req, res, next) => {
   try {
-    const note = await Note.create(req.body);
+    const { title, content = "", tag = "Todo" } = req.body;
+
+    const note = await Note.create({
+      title,
+      content,
+      tag,
+      userId: req.user._id
+    });
+
     res.status(201).json(note);
   } catch (error) {
     if (error.name === "ValidationError") {
@@ -73,14 +86,20 @@ export const deleteNote = async (req, res, next) => {
   try {
     const { noteId } = req.params;
 
-    const note = await Note.findOneAndDelete({ _id: noteId });
+    const note = await Note.findOneAndDelete({
+      _id: noteId,
+      userId: req.user._id
+    });
 
     if (!note) {
       return next(createHttpError(404, "Note not found"));
     }
 
-    res.status(200).json(note);
+    res.status(204).send();
   } catch (error) {
+    if (error.name === "CastError") {
+      return next(createHttpError(400, "Invalid note id"));
+    }
     next(error);
   }
 };
@@ -88,10 +107,18 @@ export const deleteNote = async (req, res, next) => {
 export const updateNote = async (req, res, next) => {
   try {
     const { noteId } = req.params;
+    const updateData = req.body;
 
-    const note = await Note.findOneAndUpdate({ _id: noteId }, req.body, {
-      new: true
-    });
+    const note = await Note.findOneAndUpdate(
+      {
+        _id: noteId,
+        userId: req.user._id
+      },
+      updateData,
+      {
+        new: true
+      }
+    );
 
     if (!note) {
       return next(createHttpError(404, "Note not found"));
@@ -101,6 +128,9 @@ export const updateNote = async (req, res, next) => {
   } catch (error) {
     if (error.name === "ValidationError") {
       return next(createHttpError(400, error.message));
+    }
+    if (error.name === "CastError") {
+      return next(createHttpError(400, "Invalid note id"));
     }
     next(error);
   }

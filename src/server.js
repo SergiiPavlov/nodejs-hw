@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import "dotenv/config";
 import { errors } from "celebrate";
 
@@ -8,6 +9,7 @@ import { logger } from "./middleware/logger.js";
 import { notFoundHandler } from "./middleware/notFoundHandler.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import notesRoutes from "./routes/notesRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
 
 const app = express();
 
@@ -17,16 +19,13 @@ const PORT = process.env.PORT ?? 3000;
 app.use(logger);
 app.use(cors());
 app.use(express.json());
+app.use(cookieParser());
 
-// Test route to verify error handling (optional, but handy)
-app.get("/test-error", (req, res, next) => {
-  next(new Error("Test error"));
-});
-
-// Notes routes (paths defined inside the router, e.g. /notes, /notes/:noteId)
+// Routes
+app.use(authRoutes);
 app.use(notesRoutes);
 
-// 404 middleware (after all routes)
+// 404 handler
 app.use(notFoundHandler);
 
 // Celebrate validation errors middleware
