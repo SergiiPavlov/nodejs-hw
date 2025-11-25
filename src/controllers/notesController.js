@@ -31,9 +31,9 @@ export const getAllNotes = async (req, res, next) => {
     res.status(200).json({
       page: pageNum,
       perPage: perPageNum,
-      total,
+      totalNotes: total,
       totalPages,
-      data: notes
+      notes
     });
   } catch (error) {
     next(error);
@@ -95,7 +95,7 @@ export const deleteNote = async (req, res, next) => {
       return next(createHttpError(404, "Note not found"));
     }
 
-    res.status(204).send();
+    res.status(200).json(note);
   } catch (error) {
     if (error.name === "CastError") {
       return next(createHttpError(400, "Invalid note id"));
