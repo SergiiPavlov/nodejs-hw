@@ -18,8 +18,8 @@ const PORT = process.env.PORT ?? 3000;
 
 // Global middleware
 app.use(logger);
-app.use(cors());
 app.use(express.json());
+app.use(cors());
 app.use(cookieParser());
 
 // Routes
