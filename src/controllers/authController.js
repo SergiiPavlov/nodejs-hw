@@ -8,7 +8,7 @@ import handlebars from "handlebars";
 import { User } from "../models/user.js";
 import { Session } from "../models/session.js";
 import { createSession, setSessionCookies } from "../services/auth.js";
-import { sendEmail } from "../utils/sendEmail.js";
+import { sendMail } from "../utils/sendMail.js";
 
 export const registerUser = async (req, res, next) => {
   try {
@@ -148,13 +148,13 @@ export const requestResetEmail = async (req, res, next) => {
     });
 
     try {
-      await sendEmail({
+      await sendMail({
         from: process.env.SMTP_FROM,
         to: email,
         subject: "Password reset",
         html
       });
-    } catch (error) {
+    } catch {
       return next(
         createHttpError(
           500,
@@ -178,7 +178,7 @@ export const resetPassword = async (req, res, next) => {
     let payload;
     try {
       payload = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (error) {
+    } catch {
       return next(createHttpError(401, "Invalid or expired token"));
     }
 
